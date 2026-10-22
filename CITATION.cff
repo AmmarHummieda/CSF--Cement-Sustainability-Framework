@@ -2,7 +2,7 @@ cff-version: 1.2.0
 message: "If you use this repository, please cite the related research article."
 title: "Cement Sustainability Framework prototype"
 type: software
-repository-code: "https://github.com/AmmarHummieda/CSF---Cement-Sustainability-Framework"
+repository-code: "https://github.com/AmmarHummieda/CSF--Cement-Sustainability-Framework"
 commit: "6c6444005482fb11d86fa184786fa623cc23b128"
 authors:
   - family-names: Hummieda

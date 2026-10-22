@@ -34,8 +34,8 @@ The paper's wider architecture includes CEMS, smart meters, oracles and IPFS. Th
 The verification suite compiles and exercises the archived source in Hardhat 3.18.0's in-process EDR-simulated local network (chain ID 1337). It uses local test accounts, needs no wallet and does not contact a public blockchain. Git and Node.js 24.19.0 are required; install the Node version recorded in `.nvmrc`, then run:
 
 ```sh
-git clone https://github.com/AmmarHummieda/CSF---Cement-Sustainability-Framework.git
-cd CSF---Cement-Sustainability-Framework
+git clone https://github.com/AmmarHummieda/CSF--Cement-Sustainability-Framework.git
+cd CSF--Cement-Sustainability-Framework
 npm ci
 npm run verify
 ```
@@ -79,4 +79,4 @@ The article is available through its [DOI](https://doi.org/10.1108/SASBE-08-2024
 
 ## Source snapshot
 
-The archived Solidity file is retained unchanged from Git commit [`6c6444005482fb11d86fa184786fa623cc23b128`](https://github.com/AmmarHummieda/CSF---Cement-Sustainability-Framework/commit/6c6444005482fb11d86fa184786fa623cc23b128). Its byte-level SHA-256 is `11fec39aafef28742ffd7e193cb54987a1b54c8bd7d9cc52dc5b14c4c1774bf3` (17,257 bytes, CRLF line endings).
+The archived Solidity file is retained unchanged from Git commit [`6c6444005482fb11d86fa184786fa623cc23b128`](https://github.com/AmmarHummieda/CSF--Cement-Sustainability-Framework/commit/6c6444005482fb11d86fa184786fa623cc23b128). Its byte-level SHA-256 is `11fec39aafef28742ffd7e193cb54987a1b54c8bd7d9cc52dc5b14c4c1774bf3` (17,257 bytes, CRLF line endings).
