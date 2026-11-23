@@ -1,7 +1,9 @@
-// Tests for the corrections in CSF_v2.sol (see docs/v2-changes.md).
-// They pass against CSF_v2.sol (the default) and are expected to fail against the
-// published baseline, which shows each fault is real:
+// Fault tests: one per behavioural fault of the published source that CSF_v2.sol
+// corrects (see docs/v2-changes.md). They pass against CSF_v2.sol (the default) and
+// are expected to fail against the published baseline, on the fault itself:
 //   CSF_SOURCE=CSF_vLatest.sol node --test test/v2-fixes.test.js
+// New capabilities, terms and regression tests that only apply to v2 are in
+// test/v2-coverage.test.js.
 const assert = require("node:assert/strict");
 const { afterEach, test } = require("node:test");
 const { createChain, deploy, expectRevert, parsedEvents } = require("./helpers");
@@ -95,22 +97,14 @@ test("fix S2: the regulator cannot approve an address that never registered", as
   await expectRevert(async () => scsc.connect(regulator).approveRegistration(await outsider.getAddress()), /No pending registration/i);
 });
 
-test("fix S3: the regulator can reject a pending registration, and the manufacturer can then register again", async () => {
-  const { regulator, manufacturer, scsc, address } = await scscChain();
-  await (await scsc.connect(manufacturer).register("First", "A", "ipfs://first")).wait();
-  await (await scsc.connect(regulator).rejectRegistration(address)).wait();
-  assert.equal((await scsc.manufacturers(address)).manufacturerAddress, "0x0000000000000000000000000000000000000000");
-  await (await scsc.connect(manufacturer).register("Corrected", "A", "ipfs://corrected")).wait();
-  assert.equal((await scsc.manufacturers(address)).name, "Corrected");
-});
-
 test("fix S4: registration events carry the name and location as readable text", async () => {
   const { regulator, manufacturer, scsc, address } = await scscChain();
   let receipt = await (await scsc.connect(manufacturer).register("Cement One", "Abu Dhabi", "ipfs://registration")).wait();
   const requested = parsedEvents(scsc, receipt, "RegistrationRequested")[0];
   assert.deepEqual([requested.args.name, requested.args.location], ["Cement One", "Abu Dhabi"]);
   receipt = await (await scsc.connect(regulator).approveRegistration(address)).wait();
-  assert.equal(parsedEvents(scsc, receipt, "RegistrationApproved")[0].args.name, "Cement One");
+  const approved = parsedEvents(scsc, receipt, "RegistrationApproved")[0];
+  assert.deepEqual([approved.args.name, approved.args.location], ["Cement One", "Abu Dhabi"]);
 });
 
 test("fix S5: the certificate keeps the same scaled emission factor as the reporting cycle", async () => {
@@ -140,17 +134,17 @@ test("fix S8: a certificate can be approved only once", async () => {
   await expectRevert(() => scsc.connect(regulator).approveCertificate(0), /already approved/i);
 });
 
-test("v2 flow: the 1200 / 300 example gives a scaled factor of 400 on both the cycle and the certificate", async () => {
-  const { regulator, scsc, address } = await reportingManufacturer({ emissions: 1200, production: 300 });
+test("fix S9: calculating the cycle with no production reported reverts with a reason, not a factor of 0", async () => {
+  const { regulator, scsc, address } = await reportingManufacturer({ emissions: 400, production: 0 });
+  await expectRevert(() => scsc.connect(regulator).calculateAverageAndEmissionFactor(address), /No production reported/);
+});
+
+test("fix S10: a report that would make the scaled factor uncomputable is rejected", async () => {
+  const limit = (2n ** 256n - 1n) / 100n; // type(uint256).max / SCALE
+  const { regulator, manufacturer, scsc, address } = await reportingManufacturer({ emissions: limit, production: 1 });
+  await expectRevert(() => scsc.connect(manufacturer).reportEmissions(1, 1, "ipfs://over"), /too large/i);
   const receipt = await (await scsc.connect(regulator).calculateAverageAndEmissionFactor(address)).wait();
-  const cycle = parsedEvents(scsc, receipt, "ReportingCycleCompleted")[0];
-  assert.deepEqual([cycle.args.emissionsPerYear, cycle.args.tonsOfCementProducedPerYear, cycle.args.emissionFactor], [1200n, 300n, 400n]);
-  await (await scsc.connect(regulator).issueCertificate(address)).wait();
-  await (await scsc.connect(regulator).approveCertificate(0)).wait();
-  const certificate = await scsc.certifications(0);
-  assert.deepEqual([certificate.emissionFactor, certificate.sustainabilityScore, certificate.regulatorApproved], [400n, 400n, true]);
-  const state = await scsc.manufacturers(address);
-  assert.deepEqual([state.totalEmissions, state.tonsOfCementProduced, state.numReports], [0n, 0n, 0n]);
+  assert.equal(parsedEvents(scsc, receipt, "ReportingCycleCompleted")[0].args.emissionFactor, limit * 100n);
 });
 
 // --- AuditSC ------------------------------------------------------------
@@ -225,17 +219,6 @@ test("fix A9: accepting a failed report makes it final, and it is not an approve
   assert.equal(parsedEvents(audit, receipt, "AuditCompleted")[0].args.passed, false);
   assert.equal(isAccepted(await audit.auditRequests(0)), true);
   assert.equal(await isAuditApproved(audit, 0), false);
-});
-
-test("terms A11: a registered auditor that is not the accepted auditor cannot submit the request's report", async () => {
-  const { regulator, manufacturer, auditor, secondAuditor, audit } = await auditChain();
-  await (await audit.connect(regulator).requestAudit(await manufacturer.getAddress())).wait();
-  await (await audit.connect(auditor).applyForAudit(0)).wait();
-  await (await audit.connect(secondAuditor).applyForAudit(0)).wait();
-  await (await audit.connect(regulator).acceptAuditor(0, await auditor.getAddress())).wait();
-  await expectRevert(() => audit.connect(secondAuditor).submitAuditReport(0, "ipfs://not-mine", true), /Only accepted auditor/i);
-  await (await audit.connect(regulator).setRegisteredAuditor(await secondAuditor.getAddress(), false)).wait();
-  assert.equal(await audit.isRegisteredAuditor(await secondAuditor.getAddress()), false);
 });
 
 test("fix A10: an audit cannot be requested for the zero address", async () => {

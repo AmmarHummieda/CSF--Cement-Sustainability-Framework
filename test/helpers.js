@@ -44,7 +44,9 @@ function parsedEvents(contract, receipt, eventName) {
 
 async function expectRevert(action, message) {
   try {
-    await action();
+    const result = await action();
+    // A transaction that was sent can still revert when mined: wait for its receipt.
+    if (result && typeof result.wait === "function") await result.wait();
   } catch (error) {
     assert.match(`${error.shortMessage || ""} ${error.message || ""}`, message);
     return;
@@ -55,7 +57,8 @@ async function expectRevert(action, message) {
 async function expectPanic(action, code) {
   const expected = `0x4e487b71${code.toString(16).padStart(64, "0")}`;
   try {
-    await action();
+    const result = await action();
+    if (result && typeof result.wait === "function") await result.wait();
   } catch (error) {
     const values = [];
     const visited = new Set();

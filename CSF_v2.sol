@@ -1,7 +1,8 @@
 // CSF_v2: corrected version of CSF_vLatest.sol.
 // CSF_vLatest.sol stays byte-identical as the published research baseline
 // (SASBE 2025, https://doi.org/10.1108/SASBE-08-2024-0291). Each change here is
-// listed in docs/v2-changes.md and covered by test/v2-fixes.test.js.
+// listed in docs/v2-changes.md, which says which test covers it, or that it was
+// checked by inspection.
 
 // SPDX-License-Identifier: MIT
 
@@ -142,6 +143,8 @@ contract SCSC {
         emissionsReports[msg.sender].push(EmissionsReport(block.timestamp, _emissions, _reportIPFSHash));
         manufacturer.lastReportTimestamp = block.timestamp;
         manufacturer.totalEmissions += _emissions;
+        // Keep the scaled factor computable: totalEmissions * SCALE must fit in uint256.
+        require(manufacturer.totalEmissions <= type(uint256).max / SCALE, "Emissions total is too large");
         manufacturer.tonsOfCementProduced += _tonsOfCementProduced;
         manufacturer.numReports++;
         if (_emissions > manufacturer.threshold) {
@@ -157,13 +160,11 @@ contract SCSC {
     }
 
     // Regulator computes and announces the current cycle's totals and emission factor.
+    // It validates exactly as issueCertificate does: no reports or no production reverts,
+    // rather than announcing a factor of 0.
     function calculateAverageAndEmissionFactor(address _manufacturerAddress) external onlyRegulator {
         Manufacturer storage manufacturer = manufacturers[_manufacturerAddress];
-        require(manufacturer.numReports > 0, "No reports available");
-        uint256 emissionFactor = 0;
-        if (manufacturer.tonsOfCementProduced > 0) {
-            emissionFactor = _emissionFactor(manufacturer);
-        }
+        uint256 emissionFactor = _emissionFactor(manufacturer);
         emit ReportingCycleCompleted(_manufacturerAddress, manufacturer.totalEmissions, manufacturer.tonsOfCementProduced, emissionFactor);
     }
 
