@@ -5,7 +5,6 @@ const solc = require("solc");
 
 const ROOT = path.join(__dirname, "..");
 const SOURCE_NAME = "CSF_vLatest.sol";
-const SOURCE_FILE = path.join(ROOT, SOURCE_NAME);
 const ARTIFACTS_DIR = path.join(ROOT, "artifacts");
 
 // Explicit deterministic build settings for the local VM artefacts.
@@ -15,11 +14,11 @@ const COMPILER_SETTINGS = {
   evmVersion: "paris"
 };
 
-function compileCSF() {
-  const source = readFileSync(SOURCE_FILE, "utf8");
+function compileSource(sourceName) {
+  const source = readFileSync(path.join(ROOT, sourceName), "utf8");
   const input = {
     language: "Solidity",
-    sources: { [SOURCE_NAME]: { content: source } },
+    sources: { [sourceName]: { content: source } },
     settings: {
       ...COMPILER_SETTINGS,
       outputSelection: {
@@ -35,6 +34,10 @@ function compileCSF() {
     throw new Error(errors.map((diagnostic) => diagnostic.formattedMessage).join("\n"));
   }
   return { source, output };
+}
+
+function compileCSF() {
+  return compileSource(SOURCE_NAME);
 }
 
 function writeArtifacts() {
@@ -68,4 +71,4 @@ if (require.main === module) {
   console.log(`Compiled ${SOURCE_NAME} with ${solc.version()} (optimizer runs=${COMPILER_SETTINGS.optimizer.runs}, viaIR=${COMPILER_SETTINGS.viaIR}).`);
 }
 
-module.exports = { COMPILER_SETTINGS, SOURCE_NAME, compileCSF, writeArtifacts };
+module.exports = { COMPILER_SETTINGS, SOURCE_NAME, compileCSF, compileSource, writeArtifacts };

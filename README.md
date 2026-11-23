@@ -80,3 +80,7 @@ The article is available through its [DOI](https://doi.org/10.1108/SASBE-08-2024
 ## Source snapshot
 
 The archived Solidity file is retained unchanged from Git commit [`6c6444005482fb11d86fa184786fa623cc23b128`](https://github.com/AmmarHummieda/CSF--Cement-Sustainability-Framework/commit/6c6444005482fb11d86fa184786fa623cc23b128). Its byte-level SHA-256 is `11fec39aafef28742ffd7e193cb54987a1b54c8bd7d9cc52dc5b14c4c1774bf3` (17,257 bytes, CRLF line endings).
+
+## Corrected version
+
+`CSF_v2.sol` is a corrected copy of the published source. It keeps the same contracts and workflow, and it fixes faults in registration, certificate scoring and auditing that a review found on 23 November 2026. [docs/v2-changes.md](docs/v2-changes.md) lists each fault, the change and the guidance it follows. `npm run test:v2` runs its tests, and `npm run test:baseline-faults` shows that the same tests fail against `CSF_vLatest.sol`. The published file above is unchanged.

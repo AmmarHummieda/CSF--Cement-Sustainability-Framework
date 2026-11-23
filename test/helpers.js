@@ -1,14 +1,14 @@
 const assert = require("node:assert/strict");
 const { BrowserProvider, ContractFactory } = require("ethers");
-const { compileCSF, SOURCE_NAME } = require("../scripts/compile");
+const { compileSource, SOURCE_NAME } = require("../scripts/compile");
 
-let contracts;
+const compiled = new Map();
 
-function compiledContracts() {
-  if (!contracts) {
-    contracts = compileCSF().output.contracts[SOURCE_NAME];
+function compiledContracts(sourceName = SOURCE_NAME) {
+  if (!compiled.has(sourceName)) {
+    compiled.set(sourceName, compileSource(sourceName).output.contracts[sourceName]);
   }
-  return contracts;
+  return compiled.get(sourceName);
 }
 
 async function createChain() {
@@ -22,8 +22,8 @@ async function createChain() {
   return { connection, ethersProvider, signers };
 }
 
-async function deploy(contractName, signer) {
-  const contract = compiledContracts()[contractName];
+async function deploy(contractName, signer, sourceName = SOURCE_NAME) {
+  const contract = compiledContracts(sourceName)[contractName];
   const factory = new ContractFactory(contract.abi, `0x${contract.evm.bytecode.object}`, signer);
   const deployed = await factory.deploy();
   await deployed.waitForDeployment();

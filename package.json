@@ -10,8 +10,10 @@
     "check:source": "node scripts/check-source-integrity.js",
     "compile": "node scripts/compile.js",
     "test": "node --test --test-concurrency=1 test/baseline-flow.test.js test/recorded-behaviour.test.js",
+    "test:v2": "node --test --test-concurrency=1 test/v2-fixes.test.js",
+    "test:baseline-faults": "node scripts/check-baseline-faults.js",
     "demo": "node scripts/demo.js",
-    "verify": "node scripts/check-source-integrity.js && node scripts/compile.js && node --test --test-concurrency=1 test/baseline-flow.test.js test/recorded-behaviour.test.js"
+    "verify": "node scripts/check-source-integrity.js && node scripts/compile.js && node --test --test-concurrency=1 test/baseline-flow.test.js test/recorded-behaviour.test.js test/v2-fixes.test.js && node scripts/check-baseline-faults.js"
   },
   "devDependencies": {
     "ethers": "6.17.0",
