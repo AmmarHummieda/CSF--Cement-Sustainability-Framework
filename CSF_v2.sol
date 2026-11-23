@@ -8,7 +8,7 @@
 pragma solidity 0.8.26;
 
 contract SCSC {
-    // Fixed-point scale for emission factors: 100 = two decimal places.
+    // Fixed-point scale for emission factors: values are in hundredths (400 means 4.00).
     uint256 public constant SCALE = 100;
 
     // Emission threshold set on registration approval (unchanged from the baseline).

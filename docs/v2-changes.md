@@ -18,6 +18,8 @@ Sources for the security checks: the Solidity 0.8.26 documentation, [Security Co
 | S6, S7 | Issuing a certificate with no production, or with no reports since the last certificate, fails with a division-by-zero panic. | Both revert with a stated reason. | OWASP SC04 Lack of Input Validation |
 | S8 | A certificate can be approved repeatedly. | It can be approved once. | OWASP SC03 Logic Errors |
 
+**Values are in hundredths.** Solidity has no decimal numbers, so v2 stores the emission factor (total emissions divided by production) multiplied by `SCALE = 100`, everywhere it appears: the `emissionFactor` in the reporting-cycle event, and the `emissionFactor` and `sustainabilityScore` on the certificate. A stored 400 means 4.00, and 99 means 0.99. The published source used this scale on the reporting cycle only.
+
 The fixed `timeElapsed = 1` is removed. The cycle event now states plainly that it reports the cycle's totals; its field names are unchanged, so tools that read the event still work. The pragma is fixed at `0.8.26` (SWC-103 Floating Pragma). The unused `approved` modifier and the out-of-date comments are removed.
 
 ## AuditSC (auditing)
