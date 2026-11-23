@@ -211,6 +211,12 @@ contract SCSC {
 }
 
 contract AuditSC {
+    // Terms follow the paper (SASBE 2025, pp. 18-21):
+    // - a registered auditor is an account the regulator has authorised to take part in audits;
+    // - an accepted auditor is the registered auditor the regulator selected for one request;
+    //   only it can submit that request's report;
+    // - the regulator accepts or rejects a submitted report; rejection reopens submission;
+    // - an approved audit is an accepted report that passed ("Approval signifies compliance").
     struct AuditRequest {
         address regulator;
         address manufacturer;
@@ -218,17 +224,17 @@ contract AuditSC {
         address acceptedAuditor;
         string reportIPFSHash;
         bool isCompleted; // a report is submitted and not rejected
-        bool isApproved;  // the regulator accepted the submitted result as final
-        bool passed;      // the auditor's result
+        bool isAccepted;  // the regulator accepted the submitted report as final
+        bool passed;      // the accepted auditor's result
         bool isOpen;      // open for applications
     }
 
     AuditRequest[] public auditRequests;
 
-    // Auditors registered by the regulator (the paper: only registered auditors may apply).
-    mapping(address => bool) public isAuditor;
+    // Registered auditors (the paper: only registered auditors are eligible to apply).
+    mapping(address => bool) public isRegisteredAuditor;
 
-    // Whether an auditor has applied for a request.
+    // Whether a registered auditor has applied for a request.
     mapping(uint256 => mapping(address => bool)) public hasApplied;
 
     event AuditorRegistered(address indexed auditor, bool registered);
@@ -237,7 +243,8 @@ contract AuditSC {
     event AuditorAccepted(uint256 indexed requestId, address indexed auditor);
     event AuditReportSubmitted(uint256 indexed requestId, string reportIPFSHash);
     event AuditResultAvailable(uint256 indexed requestId, bool indexed passed);
-    event AuditResultReviewed(uint256 indexed requestId, bool indexed approved);
+    event AuditReportAccepted(uint256 indexed requestId, bool indexed passed);
+    event AuditReportRejected(uint256 indexed requestId);
     event AuditCompleted(uint256 indexed requestId, bool indexed passed);
 
     address public immutable regulator;
@@ -247,8 +254,8 @@ contract AuditSC {
         _;
     }
 
-    modifier onlyAuditor() {
-        require(isAuditor[msg.sender], "Only registered auditors can perform this action");
+    modifier onlyRegisteredAuditor() {
+        require(isRegisteredAuditor[msg.sender], "Only registered auditors can perform this action");
         _;
     }
 
@@ -261,10 +268,10 @@ contract AuditSC {
         regulator = msg.sender;
     }
 
-    // Regulator registers or removes an auditor.
-    function setAuditor(address _auditor, bool _registered) external onlyRegulator {
+    // Regulator registers an auditor, or removes its registration.
+    function setRegisteredAuditor(address _auditor, bool _registered) external onlyRegulator {
         require(_auditor != address(0) && _auditor != regulator, "Invalid auditor address");
-        isAuditor[_auditor] = _registered;
+        isRegisteredAuditor[_auditor] = _registered;
         emit AuditorRegistered(_auditor, _registered);
     }
 
@@ -281,7 +288,7 @@ contract AuditSC {
     }
 
     // A registered auditor applies once for an open request that is not its own audit.
-    function applyForAudit(uint256 _requestId) external requestExists(_requestId) onlyAuditor {
+    function applyForAudit(uint256 _requestId) external requestExists(_requestId) onlyRegisteredAuditor {
         AuditRequest storage request = auditRequests[_requestId];
         require(msg.sender != request.manufacturer, "Auditor cannot be the manufacturer");
         require(request.isOpen, "Audit request is not open for applications");
@@ -291,20 +298,20 @@ contract AuditSC {
         emit AuditorApplied(msg.sender, _requestId);
     }
 
-    // Regulator accepts one applicant; the request then closes to applications.
+    // Regulator accepts one applicant for the request; the request then closes to applications.
     // No loop over applicants, so the call cannot be priced out by many applications.
     function acceptAuditor(uint256 _requestId, address _auditor) external onlyRegulator requestExists(_requestId) {
         AuditRequest storage request = auditRequests[_requestId];
         require(request.isOpen, "Audit request is not open for applications");
         require(hasApplied[_requestId][_auditor], "Auditor did not apply for this request");
-        require(isAuditor[_auditor], "Auditor is no longer registered");
+        require(isRegisteredAuditor[_auditor], "Auditor is no longer registered");
         request.acceptedAuditor = _auditor;
         request.isOpen = false;
         emit AuditorAccepted(_requestId, _auditor);
     }
 
     // The accepted auditor submits one report; a rejected report may be resubmitted.
-    function submitAuditReport(uint256 _requestId, string memory _reportIPFSHash, bool _passed) external requestExists(_requestId) onlyAuditor {
+    function submitAuditReport(uint256 _requestId, string memory _reportIPFSHash, bool _passed) external requestExists(_requestId) onlyRegisteredAuditor {
         AuditRequest storage request = auditRequests[_requestId];
         require(request.acceptedAuditor != address(0), "Audit request is not approved yet");
         require(msg.sender == request.acceptedAuditor, "Only accepted auditor can submit report");
@@ -316,25 +323,31 @@ contract AuditSC {
         emit AuditResultAvailable(_requestId, _passed);
     }
 
-    // Regulator reviews the submitted result. Approval makes it final (pass or fail);
-    // rejection is recorded as not approved and reopens submission for the accepted auditor.
-    function approveAuditResult(uint256 _requestId, bool _approved) external onlyRegulator requestExists(_requestId) {
-        AuditRequest storage request = auditRequests[_requestId];
-        require(!request.isApproved, "Audit request is already approved");
-        require(request.isCompleted, "Audit request is not completed yet");
-        emit AuditResultReviewed(_requestId, _approved);
-        if (_approved) {
-            request.isApproved = true;
-            emit AuditCompleted(_requestId, request.passed);
-        } else {
-            request.isCompleted = false;
-            request.passed = false;
-        }
+    // Regulator accepts the submitted report as final, whether it passed or failed.
+    function acceptAuditReport(uint256 _requestId) external onlyRegulator requestExists(_requestId) {
+        AuditRequest storage request = _submittedReport(_requestId);
+        request.isAccepted = true;
+        emit AuditReportAccepted(_requestId, request.passed);
+        emit AuditCompleted(_requestId, request.passed);
     }
 
-    // True when the regulator approved a passing audit result.
-    function isCompliant(uint256 _requestId) external view requestExists(_requestId) returns (bool) {
+    // Regulator rejects the submitted report as inadequate; the accepted auditor may resubmit.
+    function rejectAuditReport(uint256 _requestId) external onlyRegulator requestExists(_requestId) {
+        AuditRequest storage request = _submittedReport(_requestId);
+        request.isCompleted = false;
+        request.passed = false;
+        emit AuditReportRejected(_requestId);
+    }
+
+    function _submittedReport(uint256 _requestId) private view returns (AuditRequest storage request) {
+        request = auditRequests[_requestId];
+        require(!request.isAccepted, "Audit report is already accepted");
+        require(request.isCompleted, "Audit request is not completed yet");
+    }
+
+    // An approved audit: the regulator accepted a report that passed.
+    function isAuditApproved(uint256 _requestId) external view requestExists(_requestId) returns (bool) {
         AuditRequest storage request = auditRequests[_requestId];
-        return request.isApproved && request.passed;
+        return request.isAccepted && request.passed;
     }
 }

@@ -24,17 +24,28 @@ The fixed `timeElapsed = 1` is removed. The cycle event now states plainly that 
 
 | Test | Fault in the published source | Change in v2 | Guidance |
 | --- | --- | --- | --- |
-| A1 | Any account that is not the regulator, or the manufacturer of the newest request, counts as an auditor. The paper says only registered auditors may apply. | The regulator registers auditors (`setAuditor`), and only registered auditors may apply and submit. | OWASP SC01 Access Control; OpenZeppelin Access Control |
+| A1 | Any account that is not the regulator, or the manufacturer of the newest request, counts as an auditor. The paper says only registered auditors may apply. | The regulator registers auditors (`setRegisteredAuditor`), and only registered auditors may apply and submit. | OWASP SC01 Access Control; OpenZeppelin Access Control |
 | A2 | Before any request exists, the auditor check underflows and panics. | Every request ID is checked first, with a stated reason. | OWASP SC04 |
 | A3 | The auditor check compares the caller with the manufacturer of the newest request, not the request being acted on. An accepted auditor can be locked out when a later request names it. | The check uses the request's own manufacturer. | OWASP SC03 |
 | A4 | An auditor can apply for the same request many times. With an open auditor role, this also lets anyone grow the list that `acceptAuditor` loops over until the call costs more gas than a block allows. | One application per auditor. Acceptance no longer loops over applicants. | Solidity documentation, Gas Limit and Loops; SWC-128; OWASP SC10 |
 | A5 | Accepting an account that did not apply closes the request with no auditor, so the audit can never finish. | Acceptance needs an application from a registered auditor. | OWASP SC03 |
 | A6 | The accepted auditor can replace the report and its pass or fail result at any time, even after the regulator approved it. | A report is submitted once. It can be resubmitted only after the regulator rejects it. | OWASP SC01, SC03 |
-| A7 | The regulator cannot reject a report that says "passed": the check meant to stop approval of a failed audit is inverted. | The regulator can approve or reject any submitted report. A rejection is recorded and reopens submission, as the paper describes. | OWASP SC03 |
-| A8, A9 | Rejecting a report still sets `isApproved` to true, so the regulator's decision is not stored. `AuditCompleted` always reports `passed = true`. | `isApproved` records the regulator's approval. `AuditCompleted` carries the auditor's result, and `isCompliant` is true only for an approved passing audit. | OWASP SC03 |
+| A7 | The regulator cannot reject a report that says "passed": the check meant to stop approval of a failed audit is inverted. | The regulator accepts (`acceptAuditReport`) or rejects (`rejectAuditReport`) any submitted report. A rejection reopens submission, as the paper describes. | OWASP SC03 |
+| A8, A9 | Rejecting a report still sets `isApproved` to true, so the regulator's decision is not stored. `AuditCompleted` always reports `passed = true`. | `isAccepted` records the regulator's acceptance. `AuditCompleted` carries the auditor's result. `isAuditApproved` is true only for an accepted report that passed. | OWASP SC03 |
 | A10 | An audit can be requested for the zero address. | Rejected. | OWASP SC04 |
 
 `requestAudit` now builds the request in storage, so the uninitialised local array that Slither flagged in the paper's security analysis is no longer there. The unused `isOpen` and `notCompleted` modifiers are removed, and the accepted auditor is held in one field rather than a one-item array.
+
+## Terms
+
+The code uses the paper's terms, so that each word means one thing:
+
+- **Registered auditor**: an account the regulator has authorised to take part in audits (`setRegisteredAuditor`, `isRegisteredAuditor`). The paper: "Only registered auditors are eligible to apply" (SASBE 2025, p. 21).
+- **Accepted auditor**: the registered auditor the regulator selects for one request (`acceptAuditor`, `acceptedAuditor`). Only it can submit that request's report (p. 19). One figure caption calls it "approved to conduct" the audit (p. 23).
+- **Accepting or rejecting a report**: the regulator's review of a submitted report (`acceptAuditReport`, `rejectAuditReport`). The paper: "approve the satisfactory results or reject them if deemed inadequate" (p. 19).
+- **Approved audit**: an accepted report that passed (`isAuditApproved`). The paper: "Approval signifies compliance with regulatory standards" (p. 19).
+
+The published source used one function, `approveAuditResult(id, approved)`, for both acceptance and rejection, and one flag, `isApproved`, that was set either way.
 
 ## Not changed: design questions for the next version
 

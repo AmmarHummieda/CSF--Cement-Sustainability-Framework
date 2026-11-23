@@ -33,16 +33,41 @@ async function reportingManufacturer({ emissions, production }) {
   return setup;
 }
 
-// Registers the given auditors where the contract has an auditor registry (CSF_v2).
+// Terms (the paper, SASBE 2025, pp. 18-21): a registered auditor may apply; the
+// accepted auditor is the one selected for a request; the regulator accepts or
+// rejects a submitted report; an approved audit is an accepted report that passed.
+// The adapters below map these to the baseline's single approveAuditResult(id, bool),
+// so on the baseline each test fails on the fault itself, not on a missing name.
+async function acceptReport(audit, regulator, id) {
+  if (hasFunction(audit, "acceptAuditReport")) return (await audit.connect(regulator).acceptAuditReport(id)).wait();
+  return (await audit.connect(regulator).approveAuditResult(id, true)).wait();
+}
+
+async function rejectReport(audit, regulator, id) {
+  if (hasFunction(audit, "rejectAuditReport")) return (await audit.connect(regulator).rejectAuditReport(id)).wait();
+  return (await audit.connect(regulator).approveAuditResult(id, false)).wait();
+}
+
+function isAccepted(state) {
+  return "isAccepted" in state.toObject() ? state.isAccepted : state.isApproved;
+}
+
+async function isAuditApproved(audit, id) {
+  if (hasFunction(audit, "isAuditApproved")) return audit.isAuditApproved(id);
+  const state = await audit.auditRequests(id);
+  return state.isApproved && state.passed;
+}
+
+// Registers the auditors where the contract has an auditor registry (CSF_v2).
 // The baseline has none, so the same tests then exercise its open auditor role.
 async function auditChain({ register = true } = {}) {
   const chain = await createChain();
   chains.push(chain);
   const [regulator, manufacturer, auditor, outsider, secondAuditor] = chain.signers;
   const audit = await deploy("AuditSC", regulator, SOURCE);
-  if (register && hasFunction(audit, "setAuditor")) {
+  if (register && hasFunction(audit, "setRegisteredAuditor")) {
     for (const account of [auditor, secondAuditor]) {
-      await (await audit.connect(regulator).setAuditor(await account.getAddress(), true)).wait();
+      await (await audit.connect(regulator).setRegisteredAuditor(await account.getAddress(), true)).wait();
     }
   }
   return { regulator, manufacturer, auditor, outsider, secondAuditor, audit };
@@ -167,7 +192,7 @@ test("fix A6: a submitted report cannot be overwritten, before or after the regu
   const { regulator, auditor, audit } = await acceptedAudit();
   await (await audit.connect(auditor).submitAuditReport(0, "ipfs://first", true)).wait();
   await expectRevert(() => audit.connect(auditor).submitAuditReport(0, "ipfs://second", false), /already submitted/i);
-  await (await audit.connect(regulator).approveAuditResult(0, true)).wait();
+  await acceptReport(audit, regulator, 0);
   await expectRevert(() => audit.connect(auditor).submitAuditReport(0, "ipfs://replacement", false), /already submitted/i);
   const state = await audit.auditRequests(0);
   assert.deepEqual([state.reportIPFSHash, state.passed], ["ipfs://first", true]);
@@ -176,30 +201,41 @@ test("fix A6: a submitted report cannot be overwritten, before or after the regu
 test("fix A7: the regulator can reject a passing report; the rejection is recorded and reopens submission", async () => {
   const { regulator, auditor, audit } = await acceptedAudit();
   await (await audit.connect(auditor).submitAuditReport(0, "ipfs://inadequate", true)).wait();
-  await (await audit.connect(regulator).approveAuditResult(0, false)).wait();
+  await rejectReport(audit, regulator, 0);
   let state = await audit.auditRequests(0);
-  assert.deepEqual([state.isApproved, state.isCompleted], [false, false]);
+  assert.deepEqual([isAccepted(state), state.isCompleted], [false, false]);
   await (await audit.connect(auditor).submitAuditReport(0, "ipfs://revised", true)).wait();
-  await (await audit.connect(regulator).approveAuditResult(0, true)).wait();
+  await acceptReport(audit, regulator, 0);
   state = await audit.auditRequests(0);
-  assert.deepEqual([state.reportIPFSHash, state.isApproved, state.passed], ["ipfs://revised", true, true]);
-  assert.equal(await audit.isCompliant(0), true);
+  assert.deepEqual([state.reportIPFSHash, isAccepted(state), state.passed], ["ipfs://revised", true, true]);
+  assert.equal(await isAuditApproved(audit, 0), true);
 });
 
-test("fix A8: rejecting a failed report does not mark the audit approved", async () => {
+test("fix A8: rejecting a failed report does not mark it accepted", async () => {
   const { regulator, auditor, audit } = await acceptedAudit();
   await (await audit.connect(auditor).submitAuditReport(0, "ipfs://failed", false)).wait();
-  await (await audit.connect(regulator).approveAuditResult(0, false)).wait();
-  assert.equal((await audit.auditRequests(0)).isApproved, false);
+  await rejectReport(audit, regulator, 0);
+  assert.equal(isAccepted(await audit.auditRequests(0)), false);
 });
 
-test("fix A9: approving a failed report finalises it as not compliant", async () => {
+test("fix A9: accepting a failed report makes it final, and it is not an approved audit", async () => {
   const { regulator, auditor, audit } = await acceptedAudit();
   await (await audit.connect(auditor).submitAuditReport(0, "ipfs://failed", false)).wait();
-  const receipt = await (await audit.connect(regulator).approveAuditResult(0, true)).wait();
+  const receipt = await acceptReport(audit, regulator, 0);
   assert.equal(parsedEvents(audit, receipt, "AuditCompleted")[0].args.passed, false);
-  assert.equal((await audit.auditRequests(0)).isApproved, true);
-  assert.equal(await audit.isCompliant(0), false);
+  assert.equal(isAccepted(await audit.auditRequests(0)), true);
+  assert.equal(await isAuditApproved(audit, 0), false);
+});
+
+test("terms A11: a registered auditor that is not the accepted auditor cannot submit the request's report", async () => {
+  const { regulator, manufacturer, auditor, secondAuditor, audit } = await auditChain();
+  await (await audit.connect(regulator).requestAudit(await manufacturer.getAddress())).wait();
+  await (await audit.connect(auditor).applyForAudit(0)).wait();
+  await (await audit.connect(secondAuditor).applyForAudit(0)).wait();
+  await (await audit.connect(regulator).acceptAuditor(0, await auditor.getAddress())).wait();
+  await expectRevert(() => audit.connect(secondAuditor).submitAuditReport(0, "ipfs://not-mine", true), /Only accepted auditor/i);
+  await (await audit.connect(regulator).setRegisteredAuditor(await secondAuditor.getAddress(), false)).wait();
+  assert.equal(await audit.isRegisteredAuditor(await secondAuditor.getAddress()), false);
 });
 
 test("fix A10: an audit cannot be requested for the zero address", async () => {
