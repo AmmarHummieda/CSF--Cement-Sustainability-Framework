@@ -1,7 +1,7 @@
 // Fault tests: one per behavioural fault of the published source that CSF_v2.sol
 // corrects (see docs/v2-changes.md). They pass against CSF_v2.sol (the default) and
 // are expected to fail against the published baseline, on the fault itself:
-//   CSF_SOURCE=CSF_vLatest.sol node --test test/v2-fixes.test.js
+//   CSF_SOURCE=CSF_v1.sol node --test test/v2-fixes.test.js
 // New capabilities, terms and regression tests that only apply to v2 are in
 // test/v2-coverage.test.js.
 const assert = require("node:assert/strict");

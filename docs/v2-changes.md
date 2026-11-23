@@ -1,12 +1,12 @@
 # CSF_v2: corrections to the published contracts
 
-`CSF_vLatest.sol` is the source published with the [article](https://doi.org/10.1108/SASBE-08-2024-0291). It stays byte-identical, so the paper's results remain reproducible and the source-integrity check still holds. `CSF_v2.sol` is a corrected copy. It keeps the same two contracts, roles and four-stage workflow. It fixes faults found in a review of the published source on 23 November 2026, and two more found by an independent review of v2 the same day.
+`CSF_v1.sol` is the source published with the [article](https://doi.org/10.1108/SASBE-08-2024-0291), under its original name `CSF_vLatest.sol`. It stays byte-identical, so the paper's results remain reproducible and the source-integrity check still holds. `CSF_v2.sol` is a corrected copy. It keeps the same two contracts, roles and four-stage workflow. It fixes faults found in a review of the published source on 23 November 2026, and two more found by an independent review of v2 the same day.
 
 ## How the changes are checked
 
 The changes are of different kinds, and they are checked differently:
 
-- **Behavioural fixes** (S1, S2, S4–S10, A1–A10 below): each has a fault test in `test/v2-fixes.test.js`. The test passes against `CSF_v2.sol`. `npm run test:baseline-faults` runs only these fault tests (`test/v2-fixes.test.js`, not the coverage tests) against `CSF_vLatest.sol`, where each one fails on the fault it names (an unexpected success, a panic or a wrong value), not on a missing function.
+- **Behavioural fixes** (S1, S2, S4–S10, A1–A10 below): each has a fault test in `test/v2-fixes.test.js`. The test passes against `CSF_v2.sol`. `npm run test:baseline-faults` runs only these fault tests (`test/v2-fixes.test.js`, not the coverage tests) against `CSF_v1.sol`, where each one fails on the fault it names (an unexpected success, a panic or a wrong value), not on a missing function.
 - **A new capability** (S3, `rejectRegistration`): tested in `test/v2-coverage.test.js` against v2 only. The published source has no such function, so a run against it would show only that the function is missing.
 - **A terms check** (A11): the published source already lets only the selected auditor submit a request's report. A11, in `test/v2-coverage.test.js`, checks that the same rule holds with v2's auditor registry, in the paper's terms: another registered auditor cannot submit.
 - **Regression tests** in `test/v2-coverage.test.js` guard v2 behaviour that the fault tests do not reach: cycle totals over two reports, a second cycle, a de-registered accepted auditor, resubmission after a failed report is rejected, approval before acceptance, no second decision after acceptance on both results, and outsiders calling every regulator-only function.

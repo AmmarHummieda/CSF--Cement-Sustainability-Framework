@@ -1,5 +1,5 @@
-// CSF_v2: corrected version of CSF_vLatest.sol.
-// CSF_vLatest.sol stays byte-identical as the published research baseline
+// CSF_v2: corrected version of CSF_v1.sol.
+// CSF_v1.sol (published as CSF_vLatest.sol) stays byte-identical as the research baseline
 // (SASBE 2025, https://doi.org/10.1108/SASBE-08-2024-0291). Each change here is
 // listed in docs/v2-changes.md, which says which test covers it, or that it was
 // checked by inspection.

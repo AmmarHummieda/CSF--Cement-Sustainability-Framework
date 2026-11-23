@@ -4,7 +4,7 @@ const path = require("node:path");
 const solc = require("solc");
 
 const ROOT = path.join(__dirname, "..");
-const SOURCE_NAME = "CSF_vLatest.sol";
+const SOURCE_NAME = "CSF_v1.sol";
 const ARTIFACTS_DIR = path.join(ROOT, "artifacts");
 
 // Explicit deterministic build settings for the local VM artefacts.

@@ -2,11 +2,18 @@
 
 This repository accompanies [*Blockchain-based certification of sustainable cement production*](https://doi.org/10.1108/SASBE-08-2024-0291). It provides the Solidity implementation and a reproducible local walkthrough for the paper's certification workflow, organised around registration, reporting, auditing and certification.
 
+| Version | File | Date | What it is |
+| --- | --- | --- | --- |
+| v1 | `CSF_v1.sol` | November 2025 | As published with the SASBE 2025 article (first named `CSF_vLatest.sol`). Kept byte-identical for exact reproduction; its known faults are listed in [docs/v2-changes.md](docs/v2-changes.md). |
+| v2 | `CSF_v2.sol` | 23 November 2026 | Corrected version: the one to use. |
+
+Future fixes will become v3 and onwards.
+
 The framework is deliberately modular. The paper presents its registration, reporting, auditing and certification pattern as adaptable to other energy-intensive industries and regulatory settings.
 
 ## Purpose and contribution
 
-`CSF_vLatest.sol` contains two contracts compiled with Solidity `^0.8.26`.
+`CSF_v1.sol` contains two contracts compiled with Solidity `^0.8.26`.
 
 | Contract | What the code records |
 | --- | --- |
@@ -83,4 +90,4 @@ The archived Solidity file is retained unchanged from Git commit [`6c6444005482f
 
 ## Corrected version
 
-`CSF_v2.sol` is a corrected copy of the published source. It keeps the same contracts and workflow, and it fixes faults in registration, certificate scoring and auditing that a review found on 23 November 2026. [docs/v2-changes.md](docs/v2-changes.md) lists each fault, the change and the guidance it follows. In v2, emission-factor values are in hundredths: the factor and the sustainability score are stored multiplied by 100, so 400 means 4.00. The sustainability score is the emission factor, so a lower score is better; the certification rule (a threshold, a reciprocal or another scoring rule) is for the regulator to set when it applies the code. `npm run test:v2` runs its fault tests and coverage tests; `npm run test:baseline-faults` runs only the fault tests (`test/v2-fixes.test.js`) against `CSF_vLatest.sol`, where each one fails. The published file above is unchanged.
+`CSF_v2.sol` is a corrected copy of the published source. It keeps the same contracts and workflow, and it fixes faults in registration, certificate scoring and auditing that a review found on 23 November 2026. [docs/v2-changes.md](docs/v2-changes.md) lists each fault, the change and the guidance it follows. In v2, emission-factor values are in hundredths: the factor and the sustainability score are stored multiplied by 100, so 400 means 4.00. The sustainability score is the emission factor, so a lower score is better; the certification rule (a threshold, a reciprocal or another scoring rule) is for the regulator to set when it applies the code. `npm run test:v2` runs its fault tests and coverage tests; `npm run test:baseline-faults` runs only the fault tests (`test/v2-fixes.test.js`) against `CSF_v1.sol`, where each one fails. The published file, `CSF_v1.sol`, is unchanged apart from its name.
