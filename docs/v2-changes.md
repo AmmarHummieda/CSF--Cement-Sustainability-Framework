@@ -30,6 +30,8 @@ Sources for the security checks: the Solidity 0.8.26 documentation, [Security Co
 
 **Values are in hundredths.** Solidity has no decimal numbers, so v2 stores the emission factor (total emissions divided by production) multiplied by `SCALE = 100`, everywhere it appears: the `emissionFactor` in the reporting-cycle event, the `emissionFactor` and `sustainabilityScore` on the certificate, and the score in `CertificateIssued`. A stored 400 means 4.00, and 99 means 0.99. Division rounds down, so the error is under 0.01. The published source used this scale on the reporting cycle only.
 
+**The sustainability score is the emission factor, so a lower score is better.** The paper leaves the scoring algorithm to the regulator (SASBE 2025, p. 15). The certification rule, whether a threshold, a reciprocal of the factor or another scoring rule, is the regulator's to set when it applies the code.
+
 *(inspection)* The fixed `timeElapsed = 1` is removed. The cycle event now states plainly that it reports the cycle's totals; its field names (`emissionsPerYear`, `tonsOfCementProducedPerYear`) are unchanged, so tools that read the event still work. The pragma is fixed at `0.8.26` (SWC-103 Floating Pragma). The unused `approved` modifier and the out-of-date comments are removed.
 
 ## AuditSC (auditing)
@@ -64,7 +66,6 @@ The published source used one function, `approveAuditResult(id, approved)`, for 
 
 These are gaps between the paper's description and the code that need a design decision rather than a bug fix:
 
-- **The sustainability score is fixed and equals the emission factor.** The paper says the manufacturer prompts the contract "to compute the sustainability score - the algorithm for which can be set by the regulator", and that "if the score is above the certification threshold, a certificate is issued" (SASBE 2025, p. 15). In the code, published and v2, the score is the scaled emission factor itself. No function lets the regulator set the scoring algorithm, and there is no certification threshold, so a higher score means more emissions per tonne. The direction of the score and the threshold are open; the score design belongs to the next version.
 - `issueCertificate` does not check that an audit has been approved. The paper describes this.
 - Calculation is optional and repeatable, and reports can still arrive between calculation and issuance. The certificate uses the totals at issuance, not a frozen copy of the announced cycle.
 - If the regulator removes the accepted auditor's registration, that request cannot be completed; the regulator must restore the registration or open a new request.
