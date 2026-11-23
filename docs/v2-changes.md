@@ -4,10 +4,11 @@
 
 ## How the changes are checked
 
-There are three kinds of change, and they are checked differently:
+The changes are of different kinds, and they are checked differently:
 
-- **Behavioural fixes** (S1, S2, S4–S10, A1–A10 below): each has a fault test in `test/v2-fixes.test.js`. The test passes against `CSF_v2.sol`. `npm run test:baseline-faults` runs the same tests against `CSF_vLatest.sol`, where each one fails on the fault it names (an unexpected success, a panic or a wrong value), not on a missing function.
-- **New capabilities and terms** (S3 `rejectRegistration`; A11, the accepted-auditor rule in the paper's terms): tested in `test/v2-coverage.test.js` against v2 only. The published source has no such function, so a run against it would show only that the function is missing.
+- **Behavioural fixes** (S1, S2, S4–S10, A1–A10 below): each has a fault test in `test/v2-fixes.test.js`. The test passes against `CSF_v2.sol`. `npm run test:baseline-faults` runs only these fault tests (`test/v2-fixes.test.js`, not the coverage tests) against `CSF_vLatest.sol`, where each one fails on the fault it names (an unexpected success, a panic or a wrong value), not on a missing function.
+- **A new capability** (S3, `rejectRegistration`): tested in `test/v2-coverage.test.js` against v2 only. The published source has no such function, so a run against it would show only that the function is missing.
+- **A terms check** (A11): the published source already lets only the selected auditor submit a request's report. A11, in `test/v2-coverage.test.js`, checks that the same rule holds with v2's auditor registry, in the paper's terms: another registered auditor cannot submit.
 - **Regression tests** in `test/v2-coverage.test.js` guard v2 behaviour that the fault tests do not reach: cycle totals over two reports, a second cycle, a de-registered accepted auditor, resubmission after a failed report is rejected, approval before acceptance, no second decision after acceptance on both results, and outsiders calling every regulator-only function.
 
 Where a claim below is marked *(inspection)*, it was checked by reading the code, not by a test.
@@ -47,7 +48,7 @@ Sources for the security checks: the Solidity 0.8.26 documentation, [Security Co
 | A7 | The regulator cannot reject a report that says "passed": the check meant to stop approval of a failed audit is inverted. | The regulator accepts (`acceptAuditReport`) or rejects (`rejectAuditReport`) any submitted report. A rejection reopens submission, as the paper describes. | OWASP SC03 |
 | A8, A9 | Rejecting a report still sets `isApproved` to true, so the regulator's decision is not stored. `AuditCompleted` always reports `passed = true`. | `isAccepted` records the regulator's acceptance. `AuditCompleted` carries the auditor's result. `isAuditApproved` is true only for an accepted report that passed. | OWASP SC03 |
 | A10 | An audit can be requested for the zero address. | Rejected. | OWASP SC04 |
-| A11 (terms) | — | Only the accepted auditor can submit a request's report; another registered auditor cannot. | Paper, p. 19 |
+| A11 (terms) | Not a fault: the published source already restricts submission to the selected auditor. | The same rule, checked with v2's registry: another registered auditor cannot submit. | Paper, p. 19 |
 
 *(inspection)* `requestAudit` now builds the request in storage, so the uninitialised local array that Slither flagged in the paper's security analysis is no longer there. The unused `isOpen` and `notCompleted` modifiers are removed, and the accepted auditor is held in one field rather than a one-item array.
 
